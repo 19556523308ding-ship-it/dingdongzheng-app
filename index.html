@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>丁东政专属：AI SaaS 工作台 & 绿茵射门大战 (统一门户)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0%, #090d16 80%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .portal-container {
+      max-width: 780px;
+      width: 100%;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid #334155;
+      border-radius: 24px;
+      padding: 32px 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.65);
+      text-align: center;
+    }
+    .pill {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 28px;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      max-width: 560px;
+      margin: 0 auto 28px;
+      line-height: 1.6;
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+      text-align: left;
+    }
+    @media (max-width: 620px) {
+      .cards-grid { grid-template-columns: 1fr; }
+    }
+    .app-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 18px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+    }
+    .app-card:hover {
+      transform: translateY(-4px);
+      border-color: #38bdf8;
+    }
+    .app-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .tag-saas { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+    .tag-game { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .app-card h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #f8fafc;
+    }
+    .app-card p {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+    .feature-list {
+      list-style: none;
+      font-size: 12.5px;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .launch-btn {
+      display: block;
+      text-align: center;
+      padding: 11px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .btn-saas { background: #0284c7; color: #fff; }
+    .btn-game { background: #10b981; color: #042f2e; }
+    .footer-note {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #334155;
+      font-size: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="portal-container">
+    <span class="pill">🚀 You B Tech #19 & #20 全栈工程闭环已就绪</span>
+    <h1>丁东政专属：AI SaaS 与绿茵电竞门户</h1>
+    <p class="subtitle">
+      零成本 Serverless 架构 · 支持 Vercel / Cloudflare Pages / GitHub Pages 一键公网发布，内置 LocalStorage 数据持久化与 Web Audio 实时声效引擎。
+    </p>
+
+    <div class="cards-grid">
+      <a class="app-card" href="./saas_app.html">
+        <div>
+          <span class="app-tag tag-saas">PROJECT A · #19 AI SaaS</span>
+          <h2>⚡ AI 智能训练工作台</h2>
+          <p>专为丁东政定制的任务看板、跳绳纪录追踪与 AI 体育私教系统。</p>
+          <ul class="feature-list">
+            <li>✅ LocalStorage 实时持久化缓存</li>
+            <li>🏅 181+ 次跳绳 PR 打卡与 7 日热力图</li>
+            <li>🤖 AI 私教方案生成 + 一键同步待办</li>
+            <li>📊 一键生成本周训练诊断周报</li>
+          </ul>
+        </div>
+        <span class="launch-btn btn-saas">进入 AI 智能工作台 →</span>
+      </a>
+
+      <a class="app-card" href="./game_app.html">
+        <div>
+          <span class="app-tag tag-game">PROJECT B · #20 HYPER-CASUAL</span>
+          <h2>⚽ 绿茵射门大战 Pro</h2>
+          <p>支持触控、靶心点击与键盘操控的超休闲点球大战与激励变现原型。</p>
+          <ul class="feature-list">
+            <li>🧤 随连胜动态进阶的守门员 AI 预判</li>
+            <li>🔊 Web Audio 合成射门/欢呼/哨声音效</li>
+            <li>🎬 5 秒激励广告：真·连胜复活 + 双倍金币</li>
+            <li>💾 最高连胜与金币收益自动持久化</li>
+          </ul>
+        </div>
+        <span class="launch-btn btn-game">开始绿茵射门挑战 →</span>
+      </a>
+    </div>
+
+    <div class="footer-note">
+      架构底座：Modal Serverless Compute + Vercel Edge CDN | 审核优化版本 v2.0 Pro
+    </div>
+  </div>
+</body>
+</html>

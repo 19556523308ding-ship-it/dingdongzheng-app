@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>丁东政的 AI 智能工作台 (AI SaaS #19 Pro)</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --bg-panel: #0b1120;
+      --border: #334155;
+      --primary: #38bdf8;
+      --primary-dark: #0284c7;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0%, #0f172a 70%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.55);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    h1 {
+      font-size: 22px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--primary-dark);
+      color: white;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 520px) {
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    }
+    .stat-card {
+      background: var(--bg-dark);
+      padding: 12px 10px;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+    .stat-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .stat-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 8px;
+      background: #334155;
+      border: none;
+      border-radius: 10px;
+      color: #cbd5e1;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab.active {
+      background: var(--primary);
+      color: var(--bg-dark);
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Input & Filter Group */
+    .input-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    input[type="text"], input[type="number"], select {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: var(--bg-dark);
+      color: white;
+      outline: none;
+      font-size: 14px;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      border-color: var(--primary);
+    }
+    button.btn-primary {
+      background: var(--primary-dark);
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    button.btn-primary:hover { background: #0369a1; }
+
+    .filter-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+    }
+    .pill-btn {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .pill-btn.active {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    ul.item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    li.item {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: border-color 0.15s;
+    }
+    li.item:hover { border-color: #475569; }
+    .item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .item-done {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+    .tag-cat {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      white-space: nowrap;
+    }
+    .del-btn {
+      background: var(--danger);
+      border: none;
+      color: white;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* Jump Rope & Heatmap Panel */
+    .training-card {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .training-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #a5f3fc;
+    }
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .heat-cell {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px 4px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .heat-cell.lvl-1 { background: rgba(16, 185, 129, 0.25); border-color: #059669; color: #d1fae5; }
+    .heat-cell.lvl-2 { background: rgba(16, 185, 129, 0.55); border-color: #10b981; color: #fff; font-weight: bold; }
+    .heat-cell.lvl-3 { background: #10b981; border-color: #34d399; color: #064e3b; font-weight: 800; }
+
+    /* AI Assistant Chat */
+    .chat-box {
+      height: 290px;
+      overflow-y: auto;
+      background: var(--bg-dark);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .msg {
+      max-width: 88%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+    .msg.bot {
+      background: #1e3a8a;
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+    }
+    .msg.user {
+      background: var(--primary-dark);
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+    .ai-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    .quick-prompts {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .chip-btn {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #bae6fd;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+    .chip-btn:hover { background: rgba(56, 189, 248, 0.25); }
+    .import-btn {
+      margin-top: 8px;
+      display: inline-block;
+      background: var(--success);
+      color: #052e16;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(30px);
+      background: #10b981;
+      color: #042f2e;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      z-index: 1000;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="top-bar">
+      <span class="status-pill">● LocalStorage 实时持久化已开启</span>
+      <span id="currentDateLabel">今日训练工作台</span>
+    </div>
+    <h1>⚡ 丁东政的 AI 智能工作台</h1>
+    <span class="badge">You B Tech #19 架构: Antigravity + LocalStorage + AI 体育私教</span>
+  </header>
+
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-val" id="totalTasks">3</div>
+      <div class="stat-lbl">今日任务</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="completedTasks">1</div>
+      <div class="stat-lbl">已完成</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="completionRate">33%</div>
+      <div class="stat-lbl">完成率</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="jumpRecordVal">181 次</div>
+      <div class="stat-lbl">跳绳个人纪录</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabBtnTasks" onclick="switchTab('tasks')">📋 任务与备忘</button>
+    <button class="tab" id="tabBtnTraining" onclick="switchTab('training')">🏅 跳绳打卡与周报</button>
+    <button class="tab" id="tabBtnAi" onclick="switchTab('ai')">🤖 AI 助手 (SaaS核心)</button>
+  </div>
+
+  <!-- Tab 1: Tasks & Notes -->
+  <div id="tab-tasks" class="tab-content active">
+    <div class="input-group">
+      <select id="taskCategory" style="max-width: 110px;">
+        <option value="跳绳特训">🏃 跳绳特训</option>
+        <option value="足球训练">⚽ 足球训练</option>
+        <option value="学习成长">📚 学习成长</option>
+      </select>
+      <input type="text" id="newTaskInput" placeholder="输入新任务，例如：练习双摇跳绳..." onkeydown="if(event.key==='Enter') addTask()">
+      <button class="btn-primary" onclick="addTask()">添加</button>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-pills">
+        <button class="pill-btn active" id="filterAll" onclick="setTaskFilter('all')">全部</button>
+        <button class="pill-btn" id="filterTodo" onclick="setTaskFilter('todo')">待完成</button>
+        <button class="pill-btn" id="filterDone" onclick="setTaskFilter('done')">已完成</button>
+      </div>
+      <button class="pill-btn" onclick="resetDefaultTasks()">↺ 恢复默认示例</button>
+    </div>
+
+    <ul class="item-list" id="taskList">
+      <!-- Dynamic list -->
+    </ul>
+  </div>
+
+  <!-- Tab 2: Jump Rope Record & 7-Day Heatmap -->
+  <div id="tab-training" class="tab-content">
+    <div class="training-card">
+      <div class="training-header">
+        <span>🔥 冲击跳绳新纪录（当前 PR：<strong id="prInlineText">181</strong> 次/分钟）</span>
+      </div>
+      <div class="input-group">
+        <input type="number" id="jumpInput" min="1" max="500" placeholder="输入本次 1 分钟跳绳次数 (如 185)..." onkeydown="if(event.key==='Enter') logJumpScore()">
+        <button class="btn-primary" onclick="logJumpScore()">打卡记录</button>
+      </div>
+      <div id="jumpHistoryText" style="font-size: 12px; color: var(--text-muted);">
+        最近打卡：181 次 (历史最高纪录)
+      </div>
+    </div>
+
+    <div class="training-card">
+      <div class="training-header">
+        <span>📅 最近 7 天训练活力热力图</span>
+        <button class="pill-btn" onclick="generateWeeklyReport()">📊 生成本周训练周报</button>
+      </div>
+      <div class="heatmap-grid" id="heatmapGrid"></div>
+      <div id="weeklyReportBox" style="display:none; margin-top: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border: 1px solid #38bdf8; font-size: 12.5px; line-height: 1.6; color: #e2e8f0;"></div>
+    </div>
+  </div>
+
+  <!-- Tab 3: AI Assistant -->
+  <div id="tab-ai" class="tab-content">
+    <div class="ai-badge">
+      <span>● 内置 AI 协作者（支持一键将方案导入任务看板）</span>
+      <button class="pill-btn" onclick="clearChatHistory()">清空对话</button>
+    </div>
+
+    <div class="quick-prompts">
+      <button class="chip-btn" onclick="quickAsk('帮我制定突破跳绳 200 次特训计划')">🏃 冲击跳绳 200 次方案</button>
+      <button class="chip-btn" onclick="quickAsk('生成今日足球射门与盘球训练计划')">⚽ 足球射门盘带特训</button>
+      <button class="chip-btn" onclick="quickAsk('帮我安排放学后 45 分钟高效学习与运动时间表')">⏱️ 放学后高效时间表</button>
+    </div>
+
+    <div class="chat-box" id="chatBox">
+      <div class="msg bot">你好，丁东政！我是你的智能助手。你可以让我帮你想足球训练计划，或者帮你自动生成作业与跳绳打卡规划！点击下方快捷按钮或输入目标，我还能直接把拆解好的任务一键加入你的待办清单！</div>
+    </div>
+    <div class="input-group">
+      <input type="text" id="aiInput" placeholder="让 AI 帮你制定计划或拆解任务..." onkeydown="if(event.key==='Enter') sendAI()">
+      <button class="btn-primary" onclick="sendAI()">发送</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastMsg">已保存至本地缓存</div>
+
+<script>
+  const STORAGE_KEY = 'ddz_saas_state_v2';
+
+  const DEFAULT_TASKS = [
+    { id: 1, text: "跳绳训练：单脚连跳与双摇练习", category: "跳绳特训", done: true },
+    { id: 2, text: "足球控球与射门练习", category: "足球训练", done: false },
+    { id: 3, text: "阅读课外书 20 分钟", category: "学习成长", done: false }
+  ];
+
+  const DEFAULT_HEATMAP = [
+    { day: '周一', count: 165, tasks: 2 },
+    { day: '周二', count: 172, tasks: 3 },
+    { day: '周三', count: 168, tasks: 2 },
+    { day: '周四', count: 178, tasks: 3 },
+    { day: '周五', count: 181, tasks: 4 },
+    { day: '周六', count: 176, tasks: 3 },
+    { day: '今日', count: 181, tasks: 1 }
+  ];
+
+  let tasks = [];
+  let jumpRecord = 181;
+  let jumpHistory = [165, 172, 168, 178, 181];
+  let heatmapData = [];
+  let currentFilter = 'all';
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toastMsg');
+    if (!toast) return;
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        tasks = Array.isArray(parsed.tasks) ? parsed.tasks : DEFAULT_TASKS.slice();
+        jumpRecord = Number(parsed.jumpRecord) || 181;
+        jumpHistory = Array.isArray(parsed.jumpHistory) ? parsed.jumpHistory : [165, 172, 168, 178, 181];
+        heatmapData = Array.isArray(parsed.heatmapData) ? parsed.heatmapData : DEFAULT_HEATMAP.slice();
+        return;
+      }
+    } catch (e) {
+      // Fallback for restricted sandbox environments
+    }
+    tasks = DEFAULT_TASKS.map(t => ({ ...t }));
+    jumpRecord = 181;
+    jumpHistory = [165, 172, 168, 178, 181];
+    heatmapData = DEFAULT_HEATMAP.map(d => ({ ...d }));
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        tasks,
+        jumpRecord,
+        jumpHistory,
+        heatmapData
+      }));
+    } catch (e) {
+      // Ignore storage quota or sandbox errors
+    }
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    if (name === 'tasks') {
+      document.getElementById('tabBtnTasks').classList.add('active');
+      document.getElementById('tab-tasks').classList.add('active');
+    } else if (name === 'training') {
+      document.getElementById('tabBtnTraining').classList.add('active');
+      document.getElementById('tab-training').classList.add('active');
+      renderHeatmap();
+    } else {
+      document.getElementById('tabBtnAi').classList.add('active');
+      document.getElementById('tab-ai').classList.add('active');
+    }
+  }
+
+  function setTaskFilter(filter) {
+    currentFilter = filter;
+    document.getElementById('filterAll').classList.toggle('active', filter === 'all');
+    document.getElementById('filterTodo').classList.toggle('active', filter === 'todo');
+    document.getElementById('filterDone').classList.toggle('active', filter === 'done');
+    renderTasks();
+  }
+
+  function renderTasks() {
+    const list = document.getElementById('taskList');
+    list.innerHTML = '';
+    let completed = 0;
+    tasks.forEach(t => {
+      if (t.done) completed++;
+    });
+
+    const visibleTasks = tasks.filter(t => {
+      if (currentFilter === 'todo') return !t.done;
+      if (currentFilter === 'done') return t.done;
+      return true;
+    });
+
+    if (visibleTasks.length === 0) {
+      const emptyLi = document.createElement('li');
+      emptyLi.className = 'item';
+      emptyLi.style.justifyContent = 'center';
+      emptyLi.style.color = '#94a3b8';
+      emptyLi.innerText = '当前筛选下暂无任务，快去添加或让 AI 生成吧！';
+      list.appendChild(emptyLi);
+    } else {
+      visibleTasks.forEach(t => {
+        const li = document.createElement('li');
+        li.className = 'item';
+        const safeText = escapeHTML(t.text);
+        const safeCat = escapeHTML(t.category || '日常任务');
+        li.innerHTML = `
+          <div class="item-left" onclick="toggleTask(${Number(t.id)})">
+            <span>${t.done ? '✅' : '⬜'}</span>
+            <span class="tag-cat">${safeCat}</span>
+            <span class="${t.done ? 'item-done' : ''}">${safeText}</span>
+          </div>
+          <button class="del-btn" onclick="delTask(${Number(t.id)})">删除</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    const total = tasks.length;
+    const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    document.getElementById('totalTasks').innerText = total;
+    document.getElementById('completedTasks').innerText = completed;
+    document.getElementById('completionRate').innerText = rate + '%';
+    document.getElementById('jumpRecordVal').innerText = jumpRecord + ' 次';
+    const prInline = document.getElementById('prInlineText');
+    if (prInline) prInline.innerText = jumpRecord;
+
+    if (heatmapData.length > 0) {
+      heatmapData[heatmapData.length - 1].tasks = completed;
+    }
+    saveState();
+  }
+
+  function addTask() {
+    const inp = document.getElementById('newTaskInput');
+    const catSelect = document.getElementById('taskCategory');
+    const val = inp.value.trim();
+    if (!val) return;
+    tasks.unshift({
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      text: val,
+      category: catSelect ? catSelect.value : '跳绳特训',
+      done: false
+    });
+    inp.value = '';
+    renderTasks();
+    showToast('✅ 已添加新任务并缓存');
+  }
+
+  function toggleTask(id) {
+    const t = tasks.find(x => x.id === id);
+    if (t) t.done = !t.done;
+    renderTasks();
+  }
+
+  function delTask(id) {
+    tasks = tasks.filter(x => x.id !== id);
+    renderTasks();
+    showToast('🗑️ 任务已移除');
+  }
+
+  function resetDefaultTasks() {
+    tasks = DEFAULT_TASKS.map(t => ({ ...t }));
+    renderTasks();
+    showToast('↺ 已恢复默认示例任务');
+  }
+
+  function logJumpScore() {
+    const inp = document.getElementById('jumpInput');
+    const val = parseInt(inp.value, 10);
+    if (!val || val <= 0 || val > 600) {
+      showToast('⚠️ 请输入有效的跳绳次数 (1~600)');
+      return;
+    }
+    jumpHistory.push(val);
+    if (jumpHistory.length > 8) jumpHistory.shift();
+
+    let isNewPR = false;
+    if (val > jumpRecord) {
+      jumpRecord = val;
+      isNewPR = true;
+    }
+    if (heatmapData.length > 0) {
+      heatmapData[heatmapData.length - 1].count = Math.max(heatmapData[heatmapData.length - 1].count, val);
+    }
+    inp.value = '';
+    renderTasks();
+    renderHeatmap();
+
+    const histEl = document.getElementById('jumpHistoryText');
+    if (histEl) {
+      histEl.innerText = '最近打卡记录：' + jumpHistory.map(n => n + '次').join(' → ');
+    }
+    showToast(isNewPR ? `🎉 破纪录啦！新纪录 ${jumpRecord} 次/分！` : `🏅 打卡成功：本次 ${val} 次/分`);
+  }
+
+  function renderHeatmap() {
+    const grid = document.getElementById('heatmapGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    heatmapData.forEach(item => {
+      let lvl = '';
+      if (item.count >= 180 || item.tasks >= 3) lvl = 'lvl-3';
+      else if (item.count >= 170 || item.tasks >= 2) lvl = 'lvl-2';
+      else if (item.count > 0 || item.tasks >= 1) lvl = 'lvl-1';
+
+      const cell = document.createElement('div');
+      cell.className = 'heat-cell ' + lvl;
+      cell.innerHTML = `
+        <div>${escapeHTML(item.day)}</div>
+        <div style="margin-top:3px;">${item.count}次</div>
+        <div style="font-size:9px;opacity:0.85;">${item.tasks}项完成</div>
+      `;
+      grid.appendChild(cell);
+    });
+  }
+
+  function generateWeeklyReport() {
+    const box = document.getElementById('weeklyReportBox');
+    if (!box) return;
+    const completed = tasks.filter(t => t.done).length;
+    const avgJump = Math.round(jumpHistory.reduce((a, b) => a + b, 0) / jumpHistory.length);
+    box.style.display = 'block';
+    box.innerHTML = `
+      <strong>📈 丁东政本周智能训练周报：</strong><br>
+      • <strong>跳绳最高纪录 (PR)</strong>：${jumpRecord} 次/分钟（近期平均 ${avgJump} 次/分钟）<br>
+      • <strong>今日待办达成</strong>：已完成 ${completed} / ${tasks.length} 项任务<br>
+      • <strong>AI 教练点评</strong>：手腕摇绳节奏非常稳定！建议下阶段将双摇连跳纳入热身，冲击 ${jumpRecord + 10} 次新目标！
+    `;
+    showToast('📊 本周训练周报已生成');
+  }
+
+  function importAITasks(encodedList, category) {
+    try {
+      const items = JSON.parse(decodeURIComponent(encodedList));
+      items.forEach((txt, idx) => {
+        tasks.unshift({
+          id: Date.now() + idx + Math.floor(Math.random() * 1000),
+          text: txt,
+          category: category || 'AI 规划',
+          done: false
+        });
+      });
+      renderTasks();
+      showToast(`✅ 已将 ${items.length} 项特训计划导入任务看板！`);
+    } catch (e) {
+      showToast('导入失败，请重试');
+    }
+  }
+
+  function quickAsk(promptText) {
+    const inp = document.getElementById('aiInput');
+    inp.value = promptText;
+    sendAI();
+  }
+
+  function clearChatHistory() {
+    const box = document.getElementById('chatBox');
+    box.innerHTML = '<div class="msg bot">对话已重置！需要我为你制定新的跳绳突破方案或足球训练计划吗？</div>';
+  }
+
+  function sendAI() {
+    const inp = document.getElementById('aiInput');
+    const q = inp.value.trim();
+    if (!q) return;
+    const box = document.getElementById('chatBox');
+
+    const uMsg = document.createElement('div');
+    uMsg.className = 'msg user';
+    uMsg.innerText = q;
+    box.appendChild(uMsg);
+    inp.value = '';
+    box.scrollTop = box.scrollHeight;
+
+    setTimeout(() => {
+      const bMsg = document.createElement('div');
+      bMsg.className = 'msg bot';
+      let planItems = [];
+      let cat = '跳绳特训';
+      let replyHTML = '';
+
+      if (q.includes('跳绳') || q.includes('双摇') || q.includes('200')) {
+        cat = '跳绳特训';
+        planItems = [
+          `跳绳极速冲刺：3组×60秒（目标突破 ${jumpRecord + 5} 次）`,
+          '双摇跳绳专项：连续双摇 15 次 × 3 组',
+          '小腿与跟腱拉伸放松 5 分钟'
+        ];
+        replyHTML = `为你生成<strong>跳绳特训目标</strong>（当前纪录 ${jumpRecord} 次）：<br>1. 建议分 3 组，每组 60 秒冲击 ${jumpRecord + 5} 次，组间休息 45 秒；<br>2. 重点练习手腕快速画小圈与前脚掌弹性起跳！`;
+      } else if (q.includes('足球') || q.includes('射门') || q.includes('盘球')) {
+        cat = '足球训练';
+        planItems = [
+          '足球热身：脚内侧左右拨球 100 次',
+          '盘带进阶：绕标志桶变向运球 5 组',
+          '定点射门：左右死角推射与正脚背抽射各 10 次'
+        ];
+        replyHTML = `<strong>足球进阶方案</strong>已就绪：<br>1. 先进行 5 分钟脚内侧盘球热身；<br>2. 练习左右脚高频倒球 100 次；<br>3. 最后进行 20 次定点死角打门训练！`;
+      } else {
+        cat = '学习成长';
+        planItems = [
+          `专项计划：${q}`,
+          '番茄钟专注执行 25 分钟 + 跳绳放松 5 分钟'
+        ];
+        replyHTML = `已收到！已将“<strong>${escapeHTML(q)}</strong>”拆解为可执行行动步骤，点击下方按钮可一键同步至你的今日任务看板：`;
+      }
+
+      const encoded = encodeURIComponent(JSON.stringify(planItems));
+      bMsg.innerHTML = `
+        <div>${replyHTML}</div>
+        <button class="import-btn" onclick="importAITasks('${encoded}', '${cat}')">➕ 一键导入 ${planItems.length} 项任务到看板</button>
+      `;
+      box.appendChild(bMsg);
+      box.scrollTop = box.scrollHeight;
+    }, 320);
+  }
+
+  // Initialize
+  loadState();
+  renderTasks();
+  renderHeatmap();
+</script>
+</body>
+</html>
