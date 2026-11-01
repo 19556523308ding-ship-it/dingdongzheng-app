@@ -448,6 +448,22 @@
     <span class="difficulty-badge" id="multiplierBadge">💰 收益倍率 x1</span>
   </div>
 
+
+  <!-- 守门员难度档位调节 -->
+  <div style="background:#0b132b; border:1px solid #3b82f6; border-radius:10px; padding:8px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+    <div style="text-align:left;">
+      <div style="font-size:11px; color:#94a3b8;">🧤 守门员等级难度：</div>
+      <div id="diffDesc" style="font-size:12px; font-weight:bold; color:#60a5fa;">【2档】校队门将 (常规)</div>
+    </div>
+    <select id="diffSelect" onchange="changeDifficulty(this.value)" style="background:#1e293b; color:#fff; border:1px solid #60a5fa; border-radius:6px; padding:4px 8px; font-size:12px; font-weight:bold; outline:none; cursor:pointer;">
+      <option value="1">1档: 菜鸟守门员 (新手练习)</option>
+      <option value="2" selected>2档: 校队门将 (常规挑战)</option>
+      <option value="3">3档: 职业国脚 (快速预判)</option>
+      <option value="4">4档: 世界级门神 (极高扑救)</option>
+      <option value="5">5档: 终极AI大魔王 (终极死斗)</option>
+    </select>
+  </div>
+
   <div id="pitch">
     <canvas id="trailCanvas"></canvas>
     <div class="penalty-box"></div>
@@ -524,6 +540,14 @@
         if (Array.isArray(data.ownedTrails)) ownedTrails = data.ownedTrails;
         if (data.equippedTrailId) equippedTrailId = data.equippedTrailId;
         if (data.trailInventory) trailInventory = Object.assign(trailInventory, data.trailInventory);
+        if (data.currentDifficulty) {
+          currentDifficulty = data.currentDifficulty;
+          const sel = document.getElementById('diffSelect');
+          if (sel) sel.value = currentDifficulty;
+          const cfg = DIFFICULTY_CONFIG[currentDifficulty] || DIFFICULTY_CONFIG[2];
+          const descEl = document.getElementById('diffDesc');
+          if (descEl) descEl.innerHTML = `<span style="color:${cfg.color}">【${currentDifficulty}档】${cfg.name} (金币额外 x${cfg.mult})</span>`;
+        }
       }
     } catch (e) {
       // Ignore storage errors in restricted environments
@@ -540,7 +564,8 @@
         coins,
         ownedTrails,
         equippedTrailId,
-        trailInventory
+        trailInventory,
+        currentDifficulty
       }));
     } catch (e) {
       // Ignore storage errors
@@ -615,13 +640,36 @@
     }
   }
 
+  let currentDifficulty = 2;
+  const DIFFICULTY_CONFIG = {
+    1: { name: '菜鸟守门员', reflex: 0.10, mult: 1.0, desc: '扑救迟缓，适合练习找手感', color: '#10b981' },
+    2: { name: '校队门将', reflex: 0.25, mult: 1.2, desc: '常规水准，攻守均衡', color: '#3b82f6' },
+    3: { name: '职业国脚', reflex: 0.45, mult: 1.6, desc: '预判极快，难度提升', color: '#8b5cf6' },
+    4: { name: '世界级门神', reflex: 0.65, mult: 2.2, desc: '铜墙铁壁，极高扑救率', color: '#f59e0b' },
+    5: { name: '终极AI大魔王', reflex: 0.82, mult: 3.5, desc: '终极觉醒！进球金币3.5倍额外狂暴加成！', color: '#ef4444' }
+  };
+
+  function changeDifficulty(val) {
+    currentDifficulty = parseInt(val, 10) || 2;
+    const cfg = DIFFICULTY_CONFIG[currentDifficulty];
+    const descEl = document.getElementById('diffDesc');
+    if (descEl) {
+      descEl.innerHTML = `<span style="color:${cfg.color}">【${currentDifficulty}档】${cfg.name} (金币额外 x${cfg.mult})</span>`;
+    }
+    playSound('reward');
+    showPopup(`🧤 已切换守门员：${cfg.name}`, cfg.color);
+    saveGameState();
+  }
+
   function pickKeeperSide(playerDirection) {
     const sides = ['left', 'mid', 'right'];
-    // Dynamic difficulty based on streak (#20 Module 4 requirement)
-    // Higher streak slightly increases keeper's reflex chance while keeping gameplay fair
-    const reflexChance = Math.min(0.15 + streak * 0.03, 0.42);
-    if (Math.random() < reflexChance) {
-      return playerDirection;
+    const cfg = DIFFICULTY_CONFIG[currentDifficulty] || DIFFICULTY_CONFIG[2];
+    // reflex chance combined with current difficulty and streak bonus
+    const streakBonus = Math.min(streak * 0.02, 0.10);
+    const finalReflex = Math.min(cfg.reflex + streakBonus, 0.92);
+
+    if (Math.random() < finalReflex) {
+      return playerDirection; // Keeper guesses correctly!
     }
     const otherSides = sides.filter(s => s !== playerDirection);
     return otherSides[Math.floor(Math.random() * otherSides.length)];
@@ -666,8 +714,9 @@
 
         const curTrail = TRAILS.find(t => t.id === equippedTrailId) || TRAILS[0];
         const trailMult = getTrailCurrentMultiplier(equippedTrailId);
+        const diffCfg = DIFFICULTY_CONFIG[currentDifficulty] || DIFFICULTY_CONFIG[2];
         const doubleBuff = doubleCoinsShotsLeft > 0 ? 2 : 1;
-        const totalMultiplier = trailMult * doubleBuff;
+        const totalMultiplier = trailMult * doubleBuff * diffCfg.mult;
         const baseEarned = 5 + Math.min(streak, 5);
         const earned = Math.round(baseEarned * totalMultiplier);
         coins += earned;
