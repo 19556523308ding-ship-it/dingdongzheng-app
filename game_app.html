@@ -280,7 +280,126 @@
       background: linear-gradient(90deg, #f59e0b, #10b981);
       transition: width 0.25s linear;
     }
-  </style>
+  
+    /* Trail Canvas */
+    #trailCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .shop-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-shop {
+      flex: 1;
+      background: linear-gradient(135deg, #8b5cf6, #d946ef);
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .equipped-banner {
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid #a855f7;
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #e9d5ff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Gacha Modal */
+    .gacha-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 10, 25, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 120;
+      padding: 14px;
+    }
+    .gacha-modal-backdrop.active { display: flex; }
+    .gacha-modal {
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: #1e1b4b;
+      border: 2px solid #a855f7;
+      border-radius: 18px;
+      padding: 18px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(168, 85, 247, 0.35);
+    }
+    .gacha-draw-box {
+      background: #0f172a;
+      border-radius: 14px;
+      padding: 14px;
+      margin: 12px 0;
+      border: 1px dashed #6366f1;
+    }
+    .card-pool {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+      text-align: left;
+    }
+    .trail-item {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 10px;
+      border: 2px solid #334155;
+      font-size: 12px;
+      position: relative;
+    }
+    .trail-item.owned { border-color: #3b82f6; }
+    .trail-item.equipped { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+    .tier-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+    .tier-common { background: #64748b; color: white; }
+    .tier-rare { background: #10b981; color: white; }
+    .tier-epic { background: #8b5cf6; color: white; }
+    .tier-legendary { background: linear-gradient(90deg, #f59e0b, #ef4444); color: white; font-weight: 900; animation: pulse 1.5s infinite; }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .draw-reveal {
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+</style>
 </head>
 <body>
 
@@ -311,12 +430,26 @@
     </div>
   </div>
 
+
+  <!-- 拖尾与倍率展示栏 -->
+  <div class="equipped-banner">
+    <div>当前装备：<strong id="equippedName" style="color:#fde047">⚪ 基础白光 (1倍)</strong></div>
+    <div id="equippedBonus" style="color:#a7f3d0; font-weight:bold;">收益加成: x1</div>
+  </div>
+
+  <div class="shop-bar">
+    <button class="btn-shop" onclick="openGachaShop()">
+      🎴 拖尾抽卡商店 (金币抽卡·最高10倍金币!)
+    </button>
+  </div>
+
   <div class="status-strip">
     <span id="keeperAiStatus">🧤 守门员状态：常规防守</span>
     <span class="difficulty-badge" id="multiplierBadge">💰 收益倍率 x1</span>
   </div>
 
   <div id="pitch">
+    <canvas id="trailCanvas"></canvas>
     <div class="penalty-box"></div>
     <div class="goal-net" id="goalNet"></div>
     <div class="target-zone target-left" onclick="shoot('left')" title="点击射向左上死角">↖</div>
@@ -388,6 +521,8 @@
         streak = Number(data.streak) || 0;
         bestStreak = Number(data.bestStreak) || 0;
         coins = typeof data.coins === 'number' ? data.coins : 10;
+        if (Array.isArray(data.ownedTrails)) ownedTrails = data.ownedTrails;
+        if (data.equippedTrailId) equippedTrailId = data.equippedTrailId;
       }
     } catch (e) {
       // Ignore storage errors in restricted environments
@@ -401,7 +536,9 @@
         score,
         streak,
         bestStreak,
-        coins
+        coins,
+        ownedTrails,
+        equippedTrailId
       }));
     } catch (e) {
       // Ignore storage errors
@@ -492,6 +629,7 @@
     if (shooting) return;
     shooting = true;
     playSound('kick');
+    trackBallAndSpawn();
 
     const keeperChoice = pickKeeperSide(direction);
 
@@ -524,15 +662,18 @@
         if (streak > bestStreak) bestStreak = streak;
         lostStreakBeforeSave = 0;
 
-        const multiplier = doubleCoinsShotsLeft > 0 ? 2 : 1;
-        const earned = (5 + Math.min(streak, 5)) * multiplier;
+        const curTrail = TRAILS.find(t => t.id === equippedTrailId) || TRAILS[0];
+        const doubleBuff = doubleCoinsShotsLeft > 0 ? 2 : 1;
+        const totalMultiplier = curTrail.multiplier * doubleBuff;
+        const baseEarned = 5 + Math.min(streak, 5);
+        const earned = baseEarned * totalMultiplier;
         coins += earned;
         if (doubleCoinsShotsLeft > 0) doubleCoinsShotsLeft--;
 
         goalNet.classList.add('shake');
         setTimeout(() => goalNet.classList.remove('shake'), 260);
         playSound('goal');
-        showPopup(`⚽ 漂亮进球! +${earned}💰`, '#10b981');
+        showPopup(`⚽ 进球! +${earned}💰 (${curTrail.multiplier > 1 ? curTrail.multiplier + '倍拖尾' : ''}${doubleBuff > 1 ? ' 双倍Buff' : ''})`, curTrail.color);
       } else {
         // SAVED! Record previous streak so user can revive via AdMob!
         lostStreakBeforeSave = streak;
@@ -657,8 +798,256 @@
     else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') shoot('right');
   });
 
+  
+  // ================= 拖尾与抽卡商店系统 (#20 Pro Plus) =================
+  const TRAILS = [
+    { id: 'white', name: '基础白光', tier: 'common', tierName: '普通', multiplier: 1, color: '#ffffff', particles: ['#ffffff', '#e2e8f0'], rate: 0.50 },
+    { id: 'green', name: '疾风翠影', tier: 'rare', tierName: '稀有', multiplier: 2, color: '#10b981', particles: ['#34d399', '#059669', '#a7f3d0'], rate: 0.32 },
+    { id: 'purple', name: '烈焰紫电', tier: 'epic', tierName: '史诗', multiplier: 5, color: '#a855f7', particles: ['#c084fc', '#7e22ce', '#e879f9', '#f43f5e'], rate: 0.15 },
+    { id: 'dragon', name: '至尊金龙', tier: 'legendary', tierName: '传说', multiplier: 10, color: '#f59e0b', particles: ['#fbbf24', '#f59e0b', '#dc2626', '#ffffff'], rate: 0.03 }
+  ];
+
+  let ownedTrails = ['white'];
+  let equippedTrailId = 'white';
+
+  const canvas = document.getElementById('trailCanvas');
+  const ctx = canvas ? canvas.getContext('2d') : null;
+  let particles = [];
+  let trailAnimId = null;
+
+  function resizeCanvas() {
+    const pitchEl = document.getElementById('pitch');
+    if (pitchEl && canvas) {
+      canvas.width = pitchEl.clientWidth;
+      canvas.height = pitchEl.clientHeight;
+    }
+  }
+  window.addEventListener('resize', resizeCanvas);
+  setTimeout(resizeCanvas, 100);
+
+  function spawnTrailParticles(x, y) {
+    const current = TRAILS.find(t => t.id === equippedTrailId) || TRAILS[0];
+    const count = current.multiplier >= 10 ? 6 : (current.multiplier >= 5 ? 4 : 2);
+    for (let i = 0; i < count; i++) {
+      const col = current.particles[Math.floor(Math.random() * current.particles.length)];
+      particles.push({
+        x: x + (Math.random() - 0.5) * 14,
+        y: y + (Math.random() - 0.5) * 14,
+        vx: (Math.random() - 0.5) * 2.5,
+        vy: (Math.random() - 0.5) * 2.5 + 1.2,
+        size: Math.random() * (current.multiplier >= 10 ? 8 : 5) + 3,
+        alpha: 1.0,
+        color: col
+      });
+    }
+  }
+
+  function loopParticles() {
+    if (!ctx || !canvas) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.alpha -= 0.035;
+      p.size *= 0.95;
+      if (p.alpha <= 0 || p.size <= 0.5) {
+        particles.splice(i, 1);
+        continue;
+      }
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.alpha);
+      ctx.fillStyle = p.color;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    requestAnimationFrame(loopParticles);
+  }
+  requestAnimationFrame(loopParticles);
+
+  function trackBallAndSpawn() {
+    if (!shooting) return;
+    const pitchEl = document.getElementById('pitch');
+    const b = document.getElementById('ball');
+    if (!pitchEl || !b) return;
+    const pRect = pitchEl.getBoundingClientRect();
+    const bRect = b.getBoundingClientRect();
+    const bx = bRect.left - pRect.left + bRect.width / 2;
+    const by = bRect.top - pRect.top + bRect.height / 2;
+    spawnTrailParticles(bx, by);
+    requestAnimationFrame(trackBallAndSpawn);
+  }
+
+  function openGachaShop() {
+    const modal = document.getElementById('gachaModal');
+    if (modal) {
+      renderInventory();
+      modal.classList.add('active');
+    }
+  }
+
+  function closeGachaShop() {
+    const modal = document.getElementById('gachaModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  function renderInventory() {
+    const container = document.getElementById('trailInventory');
+    if (!container) return;
+    container.innerHTML = '';
+
+    TRAILS.forEach(t => {
+      const isOwned = ownedTrails.includes(t.id);
+      const isEquipped = (equippedTrailId === t.id);
+
+      const div = document.createElement('div');
+      div.className = `trail-item ${isOwned ? 'owned' : ''} ${isEquipped ? 'equipped' : ''}`;
+      
+      div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="tier-tag tier-${t.tier}">${t.tierName}</span>
+          <span style="font-weight:bold; color:#fde047;">x${t.multiplier} 倍收益</span>
+        </div>
+        <div style="font-size:13px; font-weight:bold; color:#fff; margin:4px 0;">${t.name}</div>
+        <div style="display:flex; align-items:center; gap:4px; margin-bottom:8px;">
+          <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${t.color}; box-shadow:0 0 8px ${t.color}"></span>
+          <span style="font-size:11px; color:#94a3b8;">${t.tier === 'legendary' ? '全屏至尊特效' : '专属粒子轨迹'}</span>
+        </div>
+        <div>
+          ${!isOwned 
+            ? '<button class="btn" style="padding:4px 8px; font-size:11px; background:#475569; width:100%;" disabled>未解锁 (抽卡获取)</button>'
+            : (isEquipped 
+                ? '<button class="btn" style="padding:4px 8px; font-size:11px; background:#10b981; width:100%; color:#064e3b; font-weight:bold;">已装备 ✓</button>'
+                : `<button class="btn" style="padding:4px 8px; font-size:11px; background:#3b82f6; width:100%; color:white;" onclick="equipTrail('${t.id}')">点击装备</button>`)
+          }
+        </div>
+      `;
+      container.appendChild(div);
+    });
+
+    // Update banner
+    const cur = TRAILS.find(t => t.id === equippedTrailId) || TRAILS[0];
+    const nameEl = document.getElementById('equippedName');
+    const bonusEl = document.getElementById('equippedBonus');
+    if (nameEl) nameEl.innerHTML = `<span style="color:${cur.color}">${cur.name}</span>`;
+    if (bonusEl) bonusEl.innerText = `拖尾加成: x${cur.multiplier} 倍金币!`;
+  }
+
+  function equipTrail(id) {
+    if (!ownedTrails.includes(id)) return;
+    equippedTrailId = id;
+    playSound('reward');
+    renderInventory();
+    saveGameState();
+    const cur = TRAILS.find(t => t.id === id);
+    showPopup(`✨ 已装备 ${cur.name}! (${cur.multiplier}倍金币)`, cur.color);
+  }
+
+  function rollOneCard() {
+    const rand = Math.random();
+    let cumulative = 0;
+    for (const t of TRAILS) {
+      cumulative += t.rate;
+      if (rand <= cumulative) return t;
+    }
+    return TRAILS[0];
+  }
+
+  function drawGacha(times) {
+    const cost = times === 1 ? 30 : 140;
+    if (coins < cost) {
+      alert(`金币不足！抽卡需要 ${cost} 金币，快去踢球或观看广告领取金币吧！`);
+      return;
+    }
+
+    coins -= cost;
+    playSound('kick');
+    updateHUD();
+
+    const results = [];
+    for (let i = 0; i < times; i++) {
+      const drawn = rollOneCard();
+      results.push(drawn);
+      if (!ownedTrails.includes(drawn.id)) {
+        ownedTrails.push(drawn.id);
+      }
+    }
+
+    saveGameState();
+    renderInventory();
+
+    // Show draw result
+    const resArea = document.getElementById('drawResultArea');
+    if (resArea) {
+      resArea.innerHTML = `
+        <div style="font-size:12px; color:#a7f3d0; margin-bottom:6px;">🎉 恭喜获得以下拖尾奖励：</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
+          ${results.map(r => `
+            <div class="draw-reveal" style="background:#1e293b; border:2px solid ${r.color}; border-radius:8px; padding:6px 10px; font-size:12px;">
+              <span class="tier-tag tier-${r.tier}">${r.tierName}</span>
+              <div style="color:${r.color}; font-weight:bold;">${r.name}</div>
+              <div style="color:#fde047; font-size:11px;">x${r.multiplier}倍收益</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    const hasLegendary = results.some(r => r.tier === 'legendary');
+    const hasEpic = results.some(r => r.tier === 'epic');
+    if (hasLegendary) {
+      playSound('goal');
+      showPopup('🌟 欧皇附体！抽出传说级至尊金龙 10倍！', '#f59e0b');
+    } else if (hasEpic) {
+      playSound('goal');
+      showPopup('🔥 史诗降临！烈焰紫电 5倍！', '#a855f7');
+    } else {
+      playSound('reward');
+    }
+  }
+
   loadGameState();
+  renderInventory();
 </script>
+
+
+<!-- 拖尾抽卡与装备商城 Modal -->
+<div class="gacha-modal-backdrop" id="gachaModal">
+  <div class="gacha-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="font-size:18px; color:#fde047;">🎴 拖尾抽卡祈愿屋</h2>
+      <button onclick="closeGachaShop()" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
+    </div>
+    <p style="font-size:12px; color:#c4b5fd; margin-top:4px;">
+      抽取酷炫足球拖尾！等级越高，踢球进球金币掉落倍率翻倍！
+    </p>
+
+    <div class="gacha-draw-box">
+      <div id="drawResultArea" style="min-height:70px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <span style="font-size:13px; color:#94a3b8;">点击下方消耗金币抽卡，搏传说 10 倍拖尾！</span>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn" style="background:#6366f1; color:white; font-size:13px; padding:10px;" onclick="drawGacha(1)">
+          单抽 (30 💰)
+        </button>
+        <button class="btn" style="background:linear-gradient(135deg, #f59e0b, #ef4444); color:white; font-size:13px; padding:10px;" onclick="drawGacha(5)">
+          五连抽 (140 💰)
+        </button>
+      </div>
+    </div>
+
+    <div style="text-align:left; font-size:13px; font-weight:bold; color:#e2e8f0; margin-top:14px;">
+      🎒 你的拖尾图鉴与装备：
+    </div>
+    <div class="card-pool" id="trailInventory">
+      <!-- 动态渲染 -->
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
