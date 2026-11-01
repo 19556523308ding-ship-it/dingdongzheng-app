@@ -523,6 +523,7 @@
         coins = typeof data.coins === 'number' ? data.coins : 10;
         if (Array.isArray(data.ownedTrails)) ownedTrails = data.ownedTrails;
         if (data.equippedTrailId) equippedTrailId = data.equippedTrailId;
+        if (data.trailInventory) trailInventory = Object.assign(trailInventory, data.trailInventory);
       }
     } catch (e) {
       // Ignore storage errors in restricted environments
@@ -538,7 +539,8 @@
         bestStreak,
         coins,
         ownedTrails,
-        equippedTrailId
+        equippedTrailId,
+        trailInventory
       }));
     } catch (e) {
       // Ignore storage errors
@@ -663,17 +665,18 @@
         lostStreakBeforeSave = 0;
 
         const curTrail = TRAILS.find(t => t.id === equippedTrailId) || TRAILS[0];
+        const trailMult = getTrailCurrentMultiplier(equippedTrailId);
         const doubleBuff = doubleCoinsShotsLeft > 0 ? 2 : 1;
-        const totalMultiplier = curTrail.multiplier * doubleBuff;
+        const totalMultiplier = trailMult * doubleBuff;
         const baseEarned = 5 + Math.min(streak, 5);
-        const earned = baseEarned * totalMultiplier;
+        const earned = Math.round(baseEarned * totalMultiplier);
         coins += earned;
         if (doubleCoinsShotsLeft > 0) doubleCoinsShotsLeft--;
 
         goalNet.classList.add('shake');
         setTimeout(() => goalNet.classList.remove('shake'), 260);
         playSound('goal');
-        showPopup(`⚽ 进球! +${earned}💰 (${curTrail.multiplier > 1 ? curTrail.multiplier + '倍拖尾' : ''}${doubleBuff > 1 ? ' 双倍Buff' : ''})`, curTrail.color);
+        showPopup(`⚽ 进球! +${earned}💰 (${trailMult > 1 ? trailMult + '倍' + curTrail.name : ''}${doubleBuff > 1 ? ' 双倍Buff' : ''})`, curTrail.color);
       } else {
         // SAVED! Record previous streak so user can revive via AdMob!
         lostStreakBeforeSave = streak;
@@ -799,16 +802,34 @@
   });
 
   
-  // ================= 拖尾与抽卡商店系统 (#20 Pro Plus) =================
+  // ================= 拖尾、合成升星与抽卡商店系统 (#20 Pro Plus) =================
   const TRAILS = [
-    { id: 'white', name: '基础白光', tier: 'common', tierName: '普通', multiplier: 1, color: '#ffffff', particles: ['#ffffff', '#e2e8f0'], rate: 0.50 },
-    { id: 'green', name: '疾风翠影', tier: 'rare', tierName: '稀有', multiplier: 2, color: '#10b981', particles: ['#34d399', '#059669', '#a7f3d0'], rate: 0.32 },
-    { id: 'purple', name: '烈焰紫电', tier: 'epic', tierName: '史诗', multiplier: 5, color: '#a855f7', particles: ['#c084fc', '#7e22ce', '#e879f9', '#f43f5e'], rate: 0.15 },
-    { id: 'dragon', name: '至尊金龙', tier: 'legendary', tierName: '传说', multiplier: 10, color: '#f59e0b', particles: ['#fbbf24', '#f59e0b', '#dc2626', '#ffffff'], rate: 0.03 }
+    { id: 'white', name: '基础白光', tier: 'common', tierName: '普通', baseMult: 1, mults: {1: 1, 2: 1.5, 3: 2.5}, color: '#ffffff', particles: ['#ffffff', '#e2e8f0'], rate: 0.50 },
+    { id: 'green', name: '疾风翠影', tier: 'rare', tierName: '稀有', baseMult: 2, mults: {1: 2, 2: 3.5, 3: 5}, color: '#10b981', particles: ['#34d399', '#059669', '#a7f3d0'], rate: 0.32 },
+    { id: 'purple', name: '烈焰紫电', tier: 'epic', tierName: '史诗', baseMult: 5, mults: {1: 5, 2: 8, 3: 12}, color: '#a855f7', particles: ['#c084fc', '#7e22ce', '#e879f9', '#f43f5e'], rate: 0.15 },
+    { id: 'dragon', name: '至尊金龙', tier: 'legendary', tierName: '传说', baseMult: 10, mults: {1: 10, 2: 15, 3: 25}, color: '#f59e0b', particles: ['#fbbf24', '#f59e0b', '#dc2626', '#ffffff'], rate: 0.03 }
   ];
 
+  // trailInventory: { id: { lv1: count, lv2: count, lv3: count, maxLv: 1 } }
+  let trailInventory = {
+    white: { lv1: 1, lv2: 0, lv3: 0, maxLv: 1 },
+    green: { lv1: 0, lv2: 0, lv3: 0, maxLv: 1 },
+    purple: { lv1: 0, lv2: 0, lv3: 0, maxLv: 1 },
+    dragon: { lv1: 0, lv2: 0, lv3: 0, maxLv: 1 }
+  };
   let ownedTrails = ['white'];
   let equippedTrailId = 'white';
+
+  function getTrailCurrentMultiplier(trailId) {
+    const t = TRAILS.find(x => x.id === trailId) || TRAILS[0];
+    const inv = trailInventory[trailId] || { maxLv: 1 };
+    const lv = inv.maxLv || 1;
+    return t.mults[lv] || t.baseMult;
+  }
+  function getTrailCurrentLevel(trailId) {
+    const inv = trailInventory[trailId] || { maxLv: 1 };
+    return inv.maxLv || 1;
+  }
 
   const canvas = document.getElementById('trailCanvas');
   const ctx = canvas ? canvas.getContext('2d') : null;
@@ -903,19 +924,32 @@
     TRAILS.forEach(t => {
       const isOwned = ownedTrails.includes(t.id);
       const isEquipped = (equippedTrailId === t.id);
+      const inv = trailInventory[t.id] || { lv1: 0, lv2: 0, lv3: 0, maxLv: 1 };
+      const curLv = inv.maxLv || 1;
+      const mult = getTrailCurrentMultiplier(t.id);
 
       const div = document.createElement('div');
       div.className = `trail-item ${isOwned ? 'owned' : ''} ${isEquipped ? 'equipped' : ''}`;
       
+      let synthBtn = '';
+      if (isOwned) {
+        if (inv.lv1 >= 2) {
+          synthBtn = `<button class="btn" style="padding:3px 6px; font-size:10px; background:#f59e0b; color:black; font-weight:bold; margin-top:4px; width:100%;" onclick="synthesizeTrail('${t.id}', 1)">2个1级 ➔ 合成2级 (花10💰)</button>`;
+        } else if (inv.lv2 >= 5) {
+          synthBtn = `<button class="btn" style="padding:3px 6px; font-size:10px; background:#ec4899; color:white; font-weight:bold; margin-top:4px; width:100%;" onclick="synthesizeTrail('${t.id}', 2)">5个2级 ➔ 觉醒3级 (花30💰)</button>`;
+        }
+      }
+
       div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span class="tier-tag tier-${t.tier}">${t.tierName}</span>
-          <span style="font-weight:bold; color:#fde047;">x${t.multiplier} 倍收益</span>
+          <span style="font-weight:bold; color:#fde047;">${isOwned ? 'Lv.' + curLv + ' (x' + mult + '倍)' : '未解锁'}</span>
         </div>
-        <div style="font-size:13px; font-weight:bold; color:#fff; margin:4px 0;">${t.name}</div>
-        <div style="display:flex; align-items:center; gap:4px; margin-bottom:8px;">
-          <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${t.color}; box-shadow:0 0 8px ${t.color}"></span>
-          <span style="font-size:11px; color:#94a3b8;">${t.tier === 'legendary' ? '全屏至尊特效' : '专属粒子轨迹'}</span>
+        <div style="font-size:13px; font-weight:bold; color:#fff; margin:4px 0;">
+          ${t.name} ${isOwned ? '⭐'.repeat(curLv) : ''}
+        </div>
+        <div style="font-size:11px; color:#cbd5e1; margin-bottom:4px;">
+          库存: 1级×${inv.lv1} | 2级×${inv.lv2} | 3级×${inv.lv3}
         </div>
         <div>
           ${!isOwned 
@@ -924,6 +958,7 @@
                 ? '<button class="btn" style="padding:4px 8px; font-size:11px; background:#10b981; width:100%; color:#064e3b; font-weight:bold;">已装备 ✓</button>'
                 : `<button class="btn" style="padding:4px 8px; font-size:11px; background:#3b82f6; width:100%; color:white;" onclick="equipTrail('${t.id}')">点击装备</button>`)
           }
+          ${synthBtn}
         </div>
       `;
       container.appendChild(div);
@@ -931,10 +966,81 @@
 
     // Update banner
     const cur = TRAILS.find(t => t.id === equippedTrailId) || TRAILS[0];
+    const curLv = getTrailCurrentLevel(equippedTrailId);
+    const curMult = getTrailCurrentMultiplier(equippedTrailId);
     const nameEl = document.getElementById('equippedName');
     const bonusEl = document.getElementById('equippedBonus');
-    if (nameEl) nameEl.innerHTML = `<span style="color:${cur.color}">${cur.name}</span>`;
-    if (bonusEl) bonusEl.innerText = `拖尾加成: x${cur.multiplier} 倍金币!`;
+    if (nameEl) nameEl.innerHTML = `<span style="color:${cur.color}">${cur.name} Lv.${curLv} ${'⭐'.repeat(curLv)}</span>`;
+    if (bonusEl) bonusEl.innerText = `拖尾加成: x${curMult} 倍金币!`;
+  }
+
+  function synthesizeTrail(id, fromLv) {
+    const inv = trailInventory[id];
+    if (!inv) return;
+    const cost = fromLv === 1 ? 10 : 30;
+    if (coins < cost) {
+      alert(`合成需要消耗 ${cost} 金币，金币不足！`);
+      return;
+    }
+
+    if (fromLv === 1 && inv.lv1 >= 2) {
+      coins -= cost;
+      inv.lv1 -= 2;
+      inv.lv2 += 1;
+      if (inv.maxLv < 2) inv.maxLv = 2;
+      playSound('goal');
+      showPopup(`🎉 合成成功！升级到 2 级 (倍率大涨!)`, '#f59e0b');
+    } else if (fromLv === 2 && inv.lv2 >= 5) {
+      coins -= cost;
+      inv.lv2 -= 5;
+      inv.lv3 += 1;
+      if (inv.maxLv < 3) inv.maxLv = 3;
+      playSound('goal');
+      showPopup(`🌟 终极觉醒！突破到 3 级 终极神龙倍率！`, '#ef4444');
+    }
+    updateHUD();
+    renderInventory();
+    saveGameState();
+  }
+
+  function autoSynthesizeAll() {
+    let upgradedCount = 0;
+    let totalCost = 0;
+
+    TRAILS.forEach(t => {
+      const inv = trailInventory[t.id];
+      if (!inv) return;
+
+      // 1. 合成 1级 -> 2级 (2合1, 耗10金币)
+      while (inv.lv1 >= 2 && coins >= totalCost + 10) {
+        inv.lv1 -= 2;
+        inv.lv2 += 1;
+        if (inv.maxLv < 2) inv.maxLv = 2;
+        totalCost += 10;
+        upgradedCount++;
+      }
+
+      // 2. 合成 2级 -> 3级 (5合1, 耗30金币)
+      while (inv.lv2 >= 5 && coins >= totalCost + 30) {
+        inv.lv2 -= 5;
+        inv.lv3 += 1;
+        if (inv.maxLv < 3) inv.maxLv = 3;
+        totalCost += 30;
+        upgradedCount++;
+      }
+    });
+
+    if (upgradedCount === 0) {
+      showPopup('目前没有满足合成条件的重复拖尾~ 快去抽卡吧！', '#94a3b8');
+      return;
+    }
+
+    coins -= totalCost;
+    playSound('goal');
+    updateHUD();
+    renderInventory();
+    saveGameState();
+    showPopup(`⚡ 一键合成完成！共升级 ${upgradedCount} 次 (消耗 ${totalCost} 金币)`, '#10b981');
   }
 
   function equipTrail(id) {
@@ -975,6 +1081,10 @@
       if (!ownedTrails.includes(drawn.id)) {
         ownedTrails.push(drawn.id);
       }
+      if (!trailInventory[drawn.id]) {
+        trailInventory[drawn.id] = { lv1: 0, lv2: 0, lv3: 0, maxLv: 1 };
+      }
+      trailInventory[drawn.id].lv1 += 1;
     }
 
     saveGameState();
@@ -1040,8 +1150,16 @@
       </div>
     </div>
 
-    <div style="text-align:left; font-size:13px; font-weight:bold; color:#e2e8f0; margin-top:14px;">
-      🎒 你的拖尾图鉴与装备：
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+      <div style="text-align:left; font-size:13px; font-weight:bold; color:#e2e8f0;">
+        🎒 你的拖尾背包与升星：
+      </div>
+      <button class="btn" style="background:linear-gradient(135deg, #10b981, #059669); color:white; font-size:11px; padding:6px 10px;" onclick="autoSynthesizeAll()">
+        ⚡ 一键合成升星 (耗少量金币)
+      </button>
+    </div>
+    <div style="text-align:left; font-size:11px; color:#94a3b8; margin-top:4px;">
+      💡 升级规则：2个1级同款合成2级 | 5个2级同款合成3级终极觉醒！等级越高金币掉落倍率翻倍！
     </div>
     <div class="card-pool" id="trailInventory">
       <!-- 动态渲染 -->
