@@ -28,7 +28,7 @@
     <h1>⛏️ 丁东政的迷你世界</h1>
     <p class="subtitle">点击画布放置方块，右键或按 Delete 键删除方块！选择下方的不同材质建造属于你的房子吧。</p>
     
-    <canvas id="gameCanvas" width="800" height="450"></canvas>
+    <canvas id="gameCanvas" width="1280" height="768"></canvas>
     
     <div class="toolbar" id="toolbar">
       <!-- Buttons injected by JS -->
@@ -40,7 +40,8 @@
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const BLOCK_SIZE = 30;
+    // Super large blocks for easy tapping on mobile!
+    const BLOCK_SIZE = 64;
     const COLS = Math.floor(canvas.width / BLOCK_SIZE);
     const ROWS = Math.floor(canvas.height / BLOCK_SIZE);
 
