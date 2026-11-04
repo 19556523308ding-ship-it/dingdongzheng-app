@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>丁东政专属：我的世界 (Web版)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px;
+    }
+    .portal-container { max-width: 850px; width: 100%; background: rgba(30, 41, 59, 0.9); border: 1px solid #334155; border-radius: 24px; padding: 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.65); text-align: center; }
+    h1 { font-size: 32px; color: #fff; margin-bottom: 8px; }
+    .subtitle { font-size: 15px; color: #94a3b8; margin-bottom: 24px; line-height: 1.5; }
+    canvas { background: #87CEEB; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); image-rendering: pixelated; cursor: crosshair; touch-action: none; max-width: 100%; }
+    .toolbar { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+    .tool-btn { padding: 10px 16px; border-radius: 12px; border: 2px solid transparent; background: #1e293b; color: #cbd5e1; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+    .tool-btn.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; transform: scale(1.05); }
+    .color-preview { width: 20px; height: 20px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); }
+    .back-link { display: inline-block; margin-top: 24px; color: #38bdf8; text-decoration: none; font-weight: 600; }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="portal-container">
+    <h1>⛏️ 丁东政的迷你世界</h1>
+    <p class="subtitle">点击画布放置方块，右键或按 Delete 键删除方块！选择下方的不同材质建造属于你的房子吧。</p>
+    
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+    
+    <div class="toolbar" id="toolbar">
+      <!-- Buttons injected by JS -->
+    </div>
+
+    <a href="index.html" class="back-link">返回主页门户</a>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const BLOCK_SIZE = 30;
+    const COLS = Math.floor(canvas.width / BLOCK_SIZE);
+    const ROWS = Math.floor(canvas.height / BLOCK_SIZE);
+
+    // Block definitions
+    const BLOCKS = {
+      grass: { color: '#5cb85c', pattern: 'grass', name: '草地' },
+      dirt: { color: '#8b5a2b', pattern: 'dirt', name: '泥土' },
+      stone: { color: '#7f8c8d', pattern: 'stone', name: '石头' },
+      wood: { color: '#d35400', pattern: 'wood', name: '木板' },
+      leaves: { color: '#27ae60', pattern: 'leaves', name: '树叶' },
+      glass: { color: '#aed6f1', pattern: 'glass', name: '玻璃' },
+      sand: { color: '#f1c40f', pattern: 'sand', name: '沙子' }
+    };
+
+    let currentBlock = 'grass';
+    let grid = Array(COLS).fill().map(() => Array(ROWS).fill(null));
+
+    // Initialize ground
+    for(let x = 0; x < COLS; x++) {
+      grid[x][ROWS-1] = 'grass';
+      grid[x][ROWS-2] = 'dirt';
+    }
+
+    function drawBlock(x, y, blockType) {
+      const px = x * BLOCK_SIZE;
+      const py = y * BLOCK_SIZE;
+      const block = BLOCKS[blockType];
+      
+      ctx.fillStyle = block.color;
+      ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+      
+      // Draw borders and patterns
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+
+      if(block.pattern === 'grass') {
+        ctx.fillStyle = '#4cae4c';
+        ctx.fillRect(px, py, BLOCK_SIZE, 5);
+      } else if (block.pattern === 'stone') {
+        ctx.fillStyle = '#95a5a6';
+        ctx.fillRect(px+5, py+5, 10, 10);
+        ctx.fillRect(px+15, py+15, 10, 10);
+      } else if (block.pattern === 'wood') {
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath(); ctx.moveTo(px, py+10); ctx.lineTo(px+BLOCK_SIZE, py+10);
+        ctx.moveTo(px, py+20); ctx.lineTo(px+BLOCK_SIZE, py+20); ctx.stroke();
+      } else if (block.pattern === 'glass') {
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.strokeRect(px+4, py+4, BLOCK_SIZE-8, BLOCK_SIZE-8);
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Sky gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, '#87CEEB');
+      grad.addColorStop(1, '#E0F7FA');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw sun
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath(); ctx.arc(canvas.width - 50, 50, 20, 0, Math.PI*2); ctx.fill();
+
+      for(let x = 0; x < COLS; x++) {
+        for(let y = 0; y < ROWS; y++) {
+          if(grid[x][y]) drawBlock(x, y, grid[x][y]);
+        }
+      }
+    }
+
+    function getMousePos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: Math.floor((evt.clientX - rect.left) * scaleX / BLOCK_SIZE),
+        y: Math.floor((evt.clientY - rect.top) * scaleY / BLOCK_SIZE)
+      };
+    }
+
+    canvas.addEventListener('mousedown', (evt) => {
+      const pos = getMousePos(evt);
+      if(pos.x >= 0 && pos.x < COLS && pos.y >= 0 && pos.y < ROWS) {
+        if(evt.button === 0) grid[pos.x][pos.y] = currentBlock; // Left click place
+        else if (evt.button === 2) grid[pos.x][pos.y] = null; // Right click remove
+        render();
+      }
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    // Touch support
+    canvas.addEventListener('touchstart', (evt) => {
+      evt.preventDefault();
+      const touch = evt.touches[0];
+      const pos = getMousePos(touch);
+      if(pos.x >= 0 && pos.x < COLS && pos.y >= 0 && pos.y < ROWS) {
+        grid[pos.x][pos.y] = currentBlock;
+        render();
+      }
+    });
+
+    // Keyboard delete
+    window.addEventListener('keydown', (e) => {
+      if(e.key === 'Delete') {
+         const pos = getMousePos({clientX: canvas.width/2, clientY: canvas.height/2}); // placeholder
+      }
+    });
+
+    // Build Toolbar
+    const toolbar = document.getElementById('toolbar');
+    Object.keys(BLOCKS).forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = `tool-btn ${key === currentBlock ? 'active' : ''}`;
+      btn.innerHTML = `<div class="color-preview" style="background:${BLOCKS[key].color}"></div>${BLOCKS[key].name}`;
+      btn.onclick = () => {
+        currentBlock = key;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+      toolbar.appendChild(btn);
+    });
+
+    render();
+  </script>
+</body>
+</html>
