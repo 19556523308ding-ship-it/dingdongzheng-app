@@ -157,6 +157,52 @@
         }
       });
 
+      // TOUCH CONTROLS (for mobile!)
+      let touchStartX = 0, touchStartY = 0;
+      let isTouching = false;
+
+      canvas.addEventListener('touchstart', (event) => {
+        event.preventDefault();
+        isTouching = true;
+        touchStartX = event.touches[0].clientX;
+        touchStartY = event.touches[0].clientY;
+
+        // Tap = mine (if tapped center area) or place
+        raycaster.setFromCamera(new THREE.Vector2(
+          (touchStartX / window.innerWidth) * 2 - 1,
+          -(touchStartY / window.innerHeight) * 2 + 1
+        ), camera);
+        const intersects = raycaster.intersectObjects(objects);
+        if (intersects.length > 0 && intersects[0].distance < 6) {
+          const intersect = intersects[0];
+          scene.remove(intersect.object);
+          objects.splice(objects.indexOf(intersect.object), 1);
+          showMessage("挖到了方块！");
+        }
+      });
+
+      canvas.addEventListener('touchmove', (event) => {
+        event.preventDefault();
+        if (!isTouching) return;
+        const touchX = event.touches[0].clientX;
+        const touchY = event.touches[0].clientY;
+        const deltaX = touchX - touchStartX;
+        const deltaY = touchY - touchStartY;
+        // Only rotate if touching top half and not moving much horizontally
+        if (touchStartY < window.innerHeight / 2) {
+          yawObject.rotation.y -= deltaX * 0.005;
+          pitchObject.rotation.x -= deltaY * 0.005;
+          pitchObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitchObject.rotation.x));
+          touchStartX = touchX;
+          touchStartY = touchY;
+        }
+      });
+
+      canvas.addEventListener('touchend', (event) => {
+        event.preventDefault();
+        isTouching = false;
+      });
+
       document.addEventListener('keyup', (event) => {
         switch (event.code) {
           case 'KeyW': moveForward = false; break;
