@@ -6,322 +6,205 @@
   <title>丁东政的 Minecraft 世界</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #000; color: #fff; overflow: hidden;
-      touch-action: none;
-    }
-    #game { width: 100vw; height: 100vh; display: block; position: absolute; }
-    #gui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-    #crosshair {
-      position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
-      transform: translate(-50%, -50%); pointer-events: none;
-    }
-    #crosshair::before, #crosshair::after {
-      content: ''; position: absolute; background: rgba(255,255,255,0.8);
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #000; overflow: hidden; touch-action: none; }
+    #game { width: 100vw; height: 100vh; display: block; }
+    #blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10; }
+    #instructions { text-align: center; color: #fff; cursor: pointer; }
+    #instructions h1 { font-size: 40px; margin-bottom: 20px; }
+    #instructions p { font-size: 16px; line-height: 1.6; }
+    #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); pointer-events: none; }
+    #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.8); }
     #crosshair::before { left: 9px; top: 0; width: 2px; height: 20px; }
     #crosshair::after { top: 9px; left: 0; width: 20px; height: 2px; }
-    #toolbar {
-      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 6px; padding: 8px; background: rgba(0,0,0,0.5);
-      border-radius: 12px; pointer-events: auto;
-    }
-    .slot {
-      width: 44px; height: 44px; border: 2px solid #555;
-      background: rgba(100,100,100,0.5); border-radius: 8px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      font-size: 10px; color: #fff; cursor: pointer;
-    }
+    #toolbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 8px; background: rgba(0,0,0,0.5); border-radius: 12px; pointer-events: auto; z-index: 5; }
+    .slot { width: 46px; height: 46px; border: 2px solid #555; background: rgba(100,100,100,0.5); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; color: #fff; cursor: pointer; }
     .slot.active { border-color: #38bdf8; background: rgba(56,189,248,0.3); }
-    .slot-icon { width: 28px; height: 28px; margin-bottom: 2px; }
-    #info {
-      position: absolute; top: 10px; left: 10px; font-size: 12px;
-      background: rgba(0,0,0,0.5); padding: 8px; border-radius: 8px;
-    }
-    #message {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      font-size: 24px; color: #fff; text-shadow: 2px 2px 4px #000;
-      pointer-events: none; opacity: 0; transition: opacity 0.3s;
-    }
+    .slot-icon { width: 30px; height: 30px; margin-bottom: 2px; }
+    #info { position: absolute; top: 10px; left: 10px; font-size: 12px; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 8px; z-index: 5; }
+    #message { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; color: #fff; text-shadow: 2px 2px 4px #000; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 5; }
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <div id="gui">
-    <div id="crosshair"></div>
-    <div id="info">方块：草地</div>
-    <div id="message"></div>
-    <div id="toolbar"></div>
+  <div id="blocker">
+    <div id="instructions">
+      <h1>⛏️ 丁东政的 Minecraft 世界</h1>
+      <p>点击屏幕开始游戏！</p>
+      <p>🖱️ 鼠标移动：观察四周</p>
+      <p>⬅️⬆️⬇️⬅️ 键盘 WASD 移动，空格跳跃</p>
+      <p>⬅️⬆️⬇️⬅️ 左键：挖矿/采集</p>
+      <p>⬅️⬆️⬇️⬅️ 右键：放置方块</p>
+      <p>⬅️⬆️⬇️⬅️ 数字键 1-9：选择方块</p>
+    </div>
   </div>
+  <canvas id="game"></canvas>
+  <div id="crosshair"></div>
+  <div id="info">方块：草地</div>
+  <div id="message"></div>
+  <div id="toolbar"></div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const blocker = document.getElementById('blocker');
+    const instructions = document.getElementById('instructions');
+    let camera, scene, renderer;
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+    let canJump = false;
+    let pitchObject, yawObject;
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    let prevTime = performance.now();
+    const objects = [];
+    let selectedBlock = 1;
 
-    // Block types
-    const BLOCKS = {
-      0: { name: '空气', color: null },
-      1: { name: '草地', color: '#5cb85c', side: '#6b8c42' },
-      2: { name: '泥土', color: '#8b5a2b', side: '#8b5a2b' },
-      3: { name: '石头', color: '#7f8c8d', side: '#7f8c8d' },
-      4: { name: '原木', color: '#a0522d', side: '#8b4513' },
-      5: { name: '木板', color: '#d2691e', side: '#d2691e' },
-      6: { name: '树叶', color: '#27ae60', side: '#27ae60' },
-      7: { name: '玻璃', color: '#aed6f1', alpha: 0.6, side: '#aed6f1' },
-      8: { name: '圆石', color: '#5a5a5a', side: '#5a5a5a' },
-      9: { name: '煤炭矿石', color: '#7f8c8d', overlay: '#000000' },
-      10: { name: '铁矿石', color: '#7f8c8d', overlay: '#c9a227' },
-      11: { name: '工作台', color: '#8e44ad' },
-      12: { name: '床', color: '#e74c3c' },
-      13: { name: '箱子', color: '#d35400' }
-    };
+    const BLOCKS = [
+      { id: 1, name: '草地', color: '#5cb85c' },
+      { id: 2, name: '泥土', color: '#8b5a2b' },
+      { id: 3, name: '石头', color: '#7f8c8d' },
+      { id: 4, name: '原木', color: '#a0522d' },
+      { id: 5, name: '木板', color: '#d2691e' },
+      { id: 6, name: '树叶', color: '#27ae60' },
+      { id: 7, name: '玻璃', color: '#aed6f1', transparent: true, opacity: 0.6 },
+      { id: 8, name: '圆石', color: '#5a5a5a' },
+      { id: 9, name: '煤炭', color: '#222222' },
+      { id: 10, name: '铁矿', color: '#c9a227' }
+    ];
 
-    // World generation (small terrain with cave)
-    const WORLD_SIZE = 64;
-    const world = {};
-    function getKey(x, y, z) { return `${x},${y},${z}`; }
-    function setBlock(x, y, z, id) { world[getKey(x, y, z)] = id; }
-    function getBlock(x, y, z) { return world[getKey(x, y, z)] || 0; }
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
 
-    // Generate terrain
-    for (let x = 0; x < WORLD_SIZE; x++) {
-      for (let z = 0; z < WORLD_SIZE; z++) {
-        const h = Math.floor(4 + Math.sin(x * 0.15) * 2 + Math.cos(z * 0.15) * 2);
-        for (let y = 0; y <= h; y++) {
-          if (y === h) setBlock(x, y, z, 1);
-          else if (y > h - 3) setBlock(x, y, z, 2);
-          else setBlock(x, y, z, 3);
-        }
-        // Cave
-        if (Math.random() < 0.03 && h > 5) {
-          const cx = x + Math.floor(Math.random() * 8) - 4;
-          const cy = h - 3 + Math.floor(Math.random() * 4);
-          for (let dx = -3; dx <= 3; dx++) {
-            for (let dy = -2; dy <= 2; dy++) {
-              for (let dz = -3; dz <= 3; dz++) {
-                if (Math.random() < 0.7) setBlock(cx + dx, cy + dy, z + dz, 0);
-              }
-            }
+    init();
+    animate();
+
+    function init() {
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      pitchObject = new THREE.Object3D();
+      yawObject = new THREE.Object3D();
+      yawObject.position.y = 2;
+      pitchObject.add(yawObject);
+      camera.add(pitchObject);
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87CEEB);
+      scene.fog = new THREE.Fog(0x87CEEB, 10, 60);
+
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+      scene.add(light);
+
+      const textureLoader = new THREE.TextureLoader();
+      const materials = {};
+      BLOCKS.forEach(b => {
+        materials[b.id] = new THREE.MeshLambertMaterial({ color: b.color, transparent: b.transparent || false, opacity: b.opacity || 1 });
+      });
+
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const worldSize = 32;
+      for (let x = 0; x < worldSize; x++) {
+        for (let z = 0; z < worldSize; z++) {
+          const h = Math.floor(4 + Math.sin(x * 0.2) * 2 + Math.cos(z * 0.2) * 2);
+          for (let y = 0; y <= h; y++) {
+            let id = 3;
+            if (y === h) id = 1;
+            else if (y > h - 3) id = 2;
+            const cube = new THREE.Mesh(geometry, materials[id]);
+            cube.position.set(x - worldSize/2, y, z - worldSize/2);
+            cube.userData = { id: id, isBlock: true };
+            scene.add(cube);
+            objects.push(cube);
           }
         }
-        // Ores
-        if (h > 3 && Math.random() < 0.02) setBlock(x, h - 1, z, 9);
-        if (h > 2 && Math.random() < 0.01) setBlock(x, h - 2, z, 10);
-        // Trees
-        if (Math.random() < 0.02 && h > 0) {
-          const tx = x, tz = z;
-          for (let ty = h; ty < h + 4; ty++) setBlock(tx, ty, tz, 4);
-          for (let ty = h + 4; ty < h + 8; ty++) setBlock(tx, ty, tz, 6);
-        }
       }
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvas });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      blocker.addEventListener('click', () => {
+        canvas.requestPointerLock();
+      });
+
+      document.addEventListener('pointerlockchange', () => {
+        if (document.pointerLockElement === canvas) {
+          blocker.style.display = 'none';
+        } else {
+          blocker.style.display = 'flex';
+        }
+      });
+
+      canvas.addEventListener('mousemove', (event) => {
+        if (document.pointerLockElement === canvas) {
+          yawObject.rotation.y -= event.movementX * 0.002;
+          pitchObject.rotation.x -= event.movementY * 0.002;
+          pitchObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitchObject.rotation.x));
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        switch (event.code) {
+          case 'KeyW': moveForward = true; break;
+          case 'KeyA': moveLeft = true; break;
+          case 'KeyS': moveBackward = true; break;
+          case 'KeyD': moveRight = true; break;
+          case 'Space': if (canJump) velocity.y += 12; canJump = false; break;
+          case 'Digit1': selectedBlock = 1; updateHotbar(); break;
+          case 'Digit2': selectedBlock = 2; updateHotbar(); break;
+          case 'Digit3': selectedBlock = 3; updateHotbar(); break;
+          case 'Digit4': selectedBlock = 4; updateHotbar(); break;
+          case 'Digit5': selectedBlock = 5; updateHotbar(); break;
+          case 'Digit6': selectedBlock = 6; updateHotbar(); break;
+          case 'Digit7': selectedBlock = 7; updateHotbar(); break;
+          case 'Digit8': selectedBlock = 8; updateHotbar(); break;
+          case 'Digit9': selectedBlock = 9; updateHotbar(); break;
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        switch (event.code) {
+          case 'KeyW': moveForward = false; break;
+          case 'KeyA': moveLeft = false; break;
+          case 'KeyS': moveBackward = false; break;
+          case 'KeyD': moveRight = false; break;
+        }
+      });
+
+      canvas.addEventListener('mousedown', (event) => {
+        if (document.pointerLockElement !== canvas) return;
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(objects);
+        if (intersects.length > 0 && intersects[0].distance < 6) {
+          const intersect = intersects[0];
+          if (event.button === 0) {
+            scene.remove(intersect.object);
+            objects.splice(objects.indexOf(intersect.object), 1);
+            showMessage("挖到了方块！");
+          } else if (event.button === 2) {
+            const pos = intersect.point.add(intersect.face.normal.multiplyScalar(0.5)).floor().addScalar(0.5);
+            const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), materials[selectedBlock]);
+            cube.position.copy(pos);
+            cube.userData = { id: selectedBlock, isBlock: true };
+            scene.add(cube);
+            objects.push(cube);
+          }
+        }
+      });
+
+      updateHotbar();
     }
 
-    // Player
-    const player = { x: 32, y: 25, z: 32, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0 };
-    const INVENTORY = [];
-    let hotbar = [1];
-    let selected = 0;
-    let miningProgress = 0;
-    let minedBlock = null;
-
-    // Rendering
-    function render() {
-      const w = canvas.width, h = canvas.height;
-      ctx.fillStyle = '#87CEEB';
-      ctx.fillRect(0, 0, w, h);
-
-      // Camera position
-      const eyeY = player.y + 1.6;
-      const cx = Math.floor(player.x), cy = Math.floor(eyeY), cz = Math.floor(player.z);
-
-      // Raycasting for blocks in front of player (simplified: render visible blocks)
-      const fov = 70;
-      const scale = w / (2 * Math.tan(fov * Math.PI / 360));
-      const renderDist = 64;
-
-      // Collect visible faces
-      const faces = [];
-      for (let x = cx - renderDist; x <= cx + renderDist; x++) {
-        for (let y = cy - renderDist; y <= cy + renderDist; y++) {
-          for (let z = cz - renderDist; z <= cz + renderDist; z++) {
-            const id = getBlock(x, y, z);
-            if (id === 0) continue;
-            const bx = x - cx, by = y - cy, bz = z - cz;
-            for (let face of [
-              [1, 0, 0, 0, 1, 0], [-1, 0, 0, 0, 1, 0],
-              [0, 1, 0, -1, 0, 0], [0, -1, 0, -1, 0, 0],
-              [0, 0, 1, 1, 0, 0], [0, 0, -1, -1, 0, 0]
-            ]) {
-              const [fx, fy, fz, sx, sy, sz] = face;
-              if (getBlock(x + fx, y + fy, z + fz) === 0) {
-                faces.push({ x: bx, y: by, z: bz, nx: fx, ny: fy, nz: fz });
-              }
-            }
-          }
-        }
-      }
-
-      // Project to screen
-      const projected = faces.map(f => {
-        const dx = f.x - player.x;
-        const dy = f.y + 1.6 - player.y - 1.6;
-        const dz = f.z - player.z;
-        // Rotate around Y (yaw)
-        const cos = Math.cos(-player.yaw);
-        const sin = Math.sin(-player.yaw);
-        let rx = dx * cos - dz * sin;
-        let rz = dx * sin + dz * cos;
-        // Rotate around X (pitch)
-        const pc = Math.cos(-player.pitch);
-        const ps = Math.sin(-player.pitch);
-        let ry = dy * pc - rz * ps;
-        rz = dy * ps + rz * pc;
-        if (rz <= 0.5) return null;
-        const scale = w / (2 * Math.tan(fov * Math.PI / 360));
-        return {
-          screenX: w / 2 + (rx * scale) / rz * w,
-          screenY: h / 2 - (ry * scale) / rz * h,
-          dist: rz,
-          f: f
-        };
-      }).filter(p => p !== null);
-
-      projected.sort((a, b) => b.dist - a.dist);
-
-      projected.forEach(p => {
-        const f = p.f;
-        const block = BLOCKS[world[getKey(cx + f.x, cy + f.y, cz + f.z)]];
-        if (!block) return;
-        ctx.fillStyle = block.alpha !== undefined 
-          ? `rgba(${parseInt(block.color.slice(1,3),16)},${parseInt(block.color.slice(3,5),16)},${parseInt(block.color.slice(5,7),16)},${block.alpha})`
-          : block.color;
-        const size = 200 / p.dist;
-        ctx.beginPath();
-        ctx.moveTo(p.screenX - size/2, p.screenY - size/2);
-        ctx.lineTo(p.screenX + size/2, p.screenY - size/2);
-        ctx.lineTo(p.screenX + size/2, p.screenY + size/2);
-        ctx.lineTo(p.screenX - size/2, p.screenY + size/2);
-        ctx.fill();
-        // Block border
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+    function updateHotbar() {
+      const block = BLOCKS[selectedBlock - 1];
+      document.getElementById('info').textContent = '方块：' + block.name;
+      const tb = document.getElementById('toolbar');
+      tb.innerHTML = '';
+      BLOCKS.forEach((b, i) => {
+        const slot = document.createElement('div');
+        slot.className = 'slot' + (i + 1 === selectedBlock ? ' active' : '');
+        const icon = document.createElement('div');
+        icon.className = 'slot-icon';
+        icon.style.backgroundColor = '#' + b.color.toString(16).padStart(6, '0');
+        slot.appendChild(icon);
+        tb.appendChild(slot);
       });
     }
-
-    function renderHeldBlock() {
-      const w = canvas.width, h = canvas.height;
-      const block = BLOCKS[hotbar[selected]];
-      const size = Math.min(w, h) * 0.35;
-      const bx = w - size - 40;
-      const by = h - size - 40;
-      ctx.fillStyle = block.color;
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bx + size, by);
-      ctx.lineTo(bx + size * 0.85, by + size);
-      ctx.lineTo(bx - size * 0.15, by + size);
-      ctx.fill();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-
-    // Mining
-    function canMine(x, y, z) {
-      const dx = x - player.x, dy = y - (player.y + 1.6), dz = z - player.z;
-      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-      return dist < 5;
-    }
-
-    canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 0) {
-        if (minedBlock && miningProgress < 100) {
-          miningProgress += 8;
-          if (miningProgress >= 100) {
-            const [x, y, z] = minedBlock;
-            const id = getBlock(x, y, z);
-            setBlock(x, y, z, 0);
-            INVENTORY.push(id);
-            showMessage("获得了：" + BLOCKS[id].name);
-            minedBlock = null;
-          }
-        }
-      }
-    });
-
-    canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const cx = Math.floor(player.x), cy = Math.floor(player.y + 1.6), cz = Math.floor(player.z);
-      const lookDir = { x: Math.sin(player.yaw)*Math.cos(player.pitch), y: Math.sin(player.pitch), z: Math.cos(player.yaw)*Math.cos(player.pitch) };
-      const sx = Math.sign(lookDir.x) || 1, sy = Math.sign(lookDir.y) || 1, sz = Math.sign(lookDir.z) || 1;
-      const px = cx + sx, py = cy + sy, pz = cz + sz;
-      if (getBlock(px, py, pz) === 0) {
-        const block = hotbar[selected];
-        setBlock(px, py, pz, block);
-      }
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      player.yaw += e.movementX * 0.003;
-      player.pitch += e.movementY * 0.003;
-      player.pitch = Math.max(-1.4, Math.min(1.4, player.pitch));
-    });
-
-    canvas.addEventListener('click', (e) => {
-      const cx = Math.floor(player.x), cy = Math.floor(player.y + 1.6), cz = Math.floor(player.z);
-      const lookDir = { x: Math.sin(player.yaw)*Math.cos(player.pitch), y: Math.sin(player.pitch), z: Math.cos(player.yaw)*Math.cos(player.pitch) };
-      let px = cx, py = cy, pz = cz;
-      for (let i = 0; i < 12; i++) {
-        const prev = { x: px, y: py, z: pz };
-        px += lookDir.x; py += lookDir.y; pz += lookDir.z;
-        if (getBlock(px, py, pz) !== 0) {
-          if (!minedBlock && canMine(px, py, pz)) {
-            minedBlock = [px, py, pz];
-            miningProgress = 0;
-          }
-          break;
-        }
-      }
-    });
-
-    document.getElementById('crosshair').addEventListener('click', () => {
-      const cx = Math.floor(player.x), cy = Math.floor(player.y + 1.6), cz = Math.floor(player.z);
-      const lookDir = { x: Math.sin(player.yaw)*Math.cos(player.pitch), y: Math.sin(player.pitch), z: Math.cos(player.yaw)*Math.cos(player.pitch) };
-      let px = cx, py = cy, pz = cz;
-      for (let i = 0; i < 12; i++) {
-        const prev = { x: px, y: py, z: pz };
-        px += lookDir.x; py += lookDir.y; pz += lookDir.z;
-        if (getBlock(px, py, pz) !== 0) {
-          if (!minedBlock && canMine(px, py, pz)) {
-            minedBlock = [px, py, pz];
-            miningProgress = 0;
-          }
-          break;
-        }
-      }
-    });
-
-    function updatePlayer(dt) {
-      // Simple movement with keyboard
-      if (keys['KeyW']) { player.x -= Math.sin(player.yaw)*0.1; player.z -= Math.cos(player.yaw)*0.1; }
-      if (keys['KeyS']) { player.x += Math.sin(player.yaw)*0.1; player.z += Math.cos(player.yaw)*0.1; }
-      if (keys['KeyA']) { player.x -= Math.cos(player.yaw)*0.1; player.z += Math.sin(player.yaw)*0.1; }
-      if (keys['KeyD']) { player.x += Math.cos(player.yaw)*0.1; player.z -= Math.sin(player.yaw)*0.1; }
-      if (keys['Space']) player.y += 0.15;
-      if (keys['ShiftLeft']) player.y -= 0.15;
-    }
-
-    const keys = {};
-    document.addEventListener('keydown', (e) => { keys[e.code] = true; });
-    document.addEventListener('keyup', (e) => { keys[e.code] = false; });
-    document.addEventListener('keydown', (e) => {
-      const n = parseInt(e.key);
-      if (n >= 1 && n <= hotbar.length) selected = n - 1;
-    });
 
     function showMessage(msg) {
       const el = document.getElementById('message');
@@ -330,41 +213,37 @@
       setTimeout(() => { el.style.opacity = 0; }, 2000);
     }
 
-    function renderInventory() {
-      const tb = document.getElementById('toolbar');
-      tb.innerHTML = '';
-      hotbar.forEach((blockId, i) => {
-        const slot = document.createElement('div');
-        slot.className = 'slot' + (i === selected ? ' active' : '');
-        const block = BLOCKS[blockId];
-        const icon = document.createElement('div');
-        icon.className = 'slot-icon';
-        icon.style.backgroundColor = block.color;
-        slot.appendChild(icon);
-        const count = document.createElement('span');
-        const invCount = INVENTORY.filter(b => b === blockId).length;
-        count.textContent = invCount;
-        slot.appendChild(count);
-        slot.onclick = () => { selected = i; hotbar[i] = blockId; };
-        tb.appendChild(slot);
-      });
-      const block = BLOCKS[hotbar[selected]];
-      document.getElementById('info').textContent = '方块：' + block.name + ' | 背包：' + INVENTORY.length;
+    function animate() {
+      requestAnimationFrame(animate);
+      const time = performance.now();
+      const delta = (time - prevTime) / 1000;
+      if (document.pointerLockElement === canvas) {
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+        velocity.y -= 30.0 * delta;
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveRight) - Number(moveLeft);
+        direction.normalize();
+        if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * delta;
+        if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * delta;
+        yawObject.translateX(-velocity.x * delta);
+        yawObject.translateZ(-velocity.z * delta);
+        yawObject.position.y += velocity.y * delta;
+        if (yawObject.position.y < 2) {
+          velocity.y = 0;
+          yawObject.position.y = 2;
+          canJump = true;
+        }
+      }
+      renderer.render(scene, camera);
+      prevTime = time;
     }
 
-    // Loop
-    let lastTime = 0;
-    function loop(timestamp) {
-      const dt = (timestamp - lastTime) / 1000;
-      lastTime = timestamp;
-      updatePlayer(dt);
-      render();
-      renderHeldBlock();
-      renderInventory();
-      requestAnimationFrame(loop);
-    }
-    renderInventory();
-    requestAnimationFrame(loop);
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 </html>
